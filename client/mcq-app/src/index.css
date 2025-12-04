@@ -1,0 +1,92 @@
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #f3f3f3;
+}
+
+/* Start Page */
+.start-container {
+  text-align: center;
+  margin-top: 200px;
+}
+
+input {
+  display: block;
+  padding: 10px;
+  margin: 10px auto;
+  width: 250px;
+}
+
+/* Quiz */
+.quiz {
+  padding: 20px;
+}
+
+.dark {
+  background: #111;
+  color: white;
+}
+
+/* Buttons */
+button {
+  padding: 8px 12px;
+  margin: 5px;
+  cursor: pointer;
+}
+
+/* Palette */
+.palette button {
+  width: 35px;
+  height: 35px;
+  border-radius: 5px;
+}
+
+.palette button.answered {
+  background: green;
+  color: white;
+}
+
+/* Selected Option */
+.selected {
+  background: dodgerblue;
+  color: white;
+}
+
+.toggle {
+  float: right;
+}
+
+
+/* Success Screen */
+.success-screen {
+  height: 100vh;
+  background: #11b611;
+  color: white;
+  text-align: center;
+  font-size: 24px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 🔔 Last Minutes Animated Warning */
+.time-warning{
+  background:#ff0000;
+  color:#fff;
+  padding:10px;
+  text-align:center;
+  font-size:18px;
+  font-weight:bold;
+  border-radius:6px;
+  margin:10px 0;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink{
+  0% { opacity:1; }
+  50% { opacity:0.3; }
+  100% { opacity:1; }
+}
+
