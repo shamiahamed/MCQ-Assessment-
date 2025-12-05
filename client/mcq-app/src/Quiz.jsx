@@ -12,52 +12,48 @@ export default function Quiz({ candidate }) {
   const [submitted, setSubmitted] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
 
+  // ✅ EMAIL VALIDATION STATES
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [started, setStarted] = useState(false);
 
+  // ---------- PAGE RELOAD CONTROL ----------
+  useEffect(() => {
+    let reloadCount = localStorage.getItem("reloadCount");
 
-// ---------- PAGE RELOAD CONTROL ----------
-useEffect(() => {
-  let reloadCount = localStorage.getItem("reloadCount");
+    if (!reloadCount) {
+      localStorage.setItem("reloadCount", 1);
+    } else {
+      reloadCount = parseInt(reloadCount) + 1;
+      localStorage.setItem("reloadCount", reloadCount);
 
-  if (!reloadCount) {
-    // First load
-    localStorage.setItem("reloadCount", 1);
-  } else {
-    reloadCount = parseInt(reloadCount) + 1;
-    localStorage.setItem("reloadCount", reloadCount);
+      if (reloadCount === 2) {
+        alert("⚠️ Warning: Reloading again will END your test!");
+      }
 
-    // 1st reload → warning
-    if (reloadCount === 2) {
-      alert("⚠️ Warning: Reloading again will END your test!");
+      if (reloadCount >= 3) {
+        submitTest();
+      }
     }
+  }, []);
 
-    // 2nd reload → auto submit
-    if (reloadCount >= 3) {
-      submitTest();
-    }
-  }
-}, []);
+  // ---------- RESET ON TAB CLOSE ----------
+  useEffect(() => {
+    const clearSession = () => {
+      localStorage.removeItem("candidate");
+      localStorage.removeItem("reloadCount");
+    };
 
-// ---------- RESET ON TAB CLOSE ----------
-useEffect(() => {
+    window.addEventListener("beforeunload", clearSession);
 
-  const clearSession = () => {
-    localStorage.removeItem("candidate");
-    localStorage.removeItem("reloadCount");
-  };
-
-  window.addEventListener("beforeunload", clearSession);
-
-  return () => {
-    window.removeEventListener("beforeunload", clearSession);
-  };
-
-}, []);
-
-
+    return () => {
+      window.removeEventListener("beforeunload", clearSession);
+    };
+  }, []);
 
   // ---------- TIMER ----------
   useEffect(() => {
-    if (submitted) return;
+    if (!started || submitted) return;
 
     const t = setInterval(() => {
       setTime((prev) => {
@@ -70,35 +66,49 @@ useEffect(() => {
     }, 1000);
 
     return () => clearInterval(t);
-  }, [submitted]);
+  }, [submitted, started]);
 
+  // ---------- EMAIL CHECK ----------
+  const isValidEmail = (mail) => {
+    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return pattern.test(mail);
+  };
 
- const submitTest = async () => {
+  const startTest = () => {
+    if (!isValidEmail(email)) {
+      setEmailError("❌ Please enter a VALID email address");
+      return;
+    }
 
-  localStorage.removeItem("reloadCount");
+    setEmailError("");
+    setStarted(true);
 
-  let score = 0;
+    candidate.email = email;
+  };
 
-  questions.forEach((q, i) => {
-    if (answers[i] === q.answer) score++;
-  });
+  // ---------- SUBMIT ----------
+  const submitTest = async () => {
+    localStorage.removeItem("reloadCount");
 
-  await axios.get("/api/result", {
-  name: candidate.name,
-  email: candidate.email,
-  score,
-  total: questions.length  
-  });
+    let score = 0;
 
-  setSubmitted(true);
+    questions.forEach((q, i) => {
+      if (answers[i] === q.answer) score++;
+    });
 
-  // SAFE fullscreen exit
-  if (document.fullscreenElement) {
-    document.exitFullscreen().catch(() => {}); 
-  }
-};
+    await axios.get("/api/result", {
+      name: candidate.name,
+      email: candidate.email,
+      score,
+      total: questions.length  
+    });
 
+    setSubmitted(true);
 
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
 
   const choose = (opt) => {
     setAnswers({ ...answers, [current]: opt });
@@ -110,13 +120,40 @@ useEffect(() => {
     return `${m}:${s < 10 ? "0" + s : s}`;
   };
 
+  // ---------- START SCREEN ----------
+  if (!started) {
+    return (
+      <div className="start-screen">
+        <h2>📝 Online Quiz</h2>
+
+        <input
+          type="email"
+          placeholder="Enter valid email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        {emailError && (
+          <p style={{ color: "red" }}>{emailError}</p>
+        )}
+
+        <button onClick={startTest}>
+          START TEST
+        </button>
+      </div>
+    );
+  }
+
+  // ---------- SUBMITTED ----------
   if (submitted) {
     return (
       <div className="submitted">
         <h1 style={{ color: "green" }}>
           ✅ TEST SUBMITTED SUCCESSFULLY
         </h1>
+
         <p>We will get back to you soon.</p>
+
         <button onClick={() => window.close()}>
           Close Tab
         </button>
@@ -124,6 +161,7 @@ useEffect(() => {
     );
   }
 
+  // ---------- MAIN QUIZ ----------
   return (
     <div className={dark ? "dark" : "light"}>
 
@@ -136,12 +174,13 @@ useEffect(() => {
         <div className={time <= 120 ? "timer blink" : "timer"}>
           ⏱ {formatTime()}
         </div>
-      </div> 
+      </div>
+
       {time <= 480 && !submitted && (
-  <div className="time-warning">
-    ⚠️ WARNING: Only {Math.floor(time / 60)} minutes left!
-  </div>
-)} 
+        <div className="time-warning">
+          ⚠️ WARNING: Only {Math.floor(time / 60)} minutes left!
+        </div>
+      )} 
 
       {/* ---------- PALETTE ---------- */}
       <div className="palette">
@@ -161,7 +200,7 @@ useEffect(() => {
         {current + 1}. {questions[current].question}
       </h2>
 
-      {/* -------- OPTIONS -------- */}
+      {/* -------- OPTIONS ---------- */}
       {questions[current].options.map((opt, i) => (
         <label key={i} className="option">
           <input
@@ -173,7 +212,7 @@ useEffect(() => {
         </label>
       ))}
 
-      {/* -------- NEXT + SUBMIT -------- */}
+      {/* -------- NAVIGATION ---------- */}
       <div style={{ marginTop: 20 }}>
 
         <button
