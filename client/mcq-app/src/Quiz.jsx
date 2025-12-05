@@ -84,17 +84,17 @@ useEffect(() => {
   });
 
   await axios.post("/api/result", {
-    name: candidate.name,
-    email: candidate.email,
-    score,
-    total: questions.length
+  name: candidate.name,
+  email: candidate.email,
+  score,
+  total: questions.length  
   });
 
   setSubmitted(true);
 
   // SAFE fullscreen exit
   if (document.fullscreenElement) {
-    document.exitFullscreen().catch(() => {});
+    document.exitFullscreen().catch(() => {}); 
   }
 };
 
