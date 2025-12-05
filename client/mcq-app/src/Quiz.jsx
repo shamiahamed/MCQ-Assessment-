@@ -83,7 +83,7 @@ useEffect(() => {
     if (answers[i] === q.answer) score++;
   });
 
-  await axios.post("/api/result", {
+  await axios.get("/api/result", {
   name: candidate.name,
   email: candidate.email,
   score,
