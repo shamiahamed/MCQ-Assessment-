@@ -1,12 +1,14 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-module.exports = mongoose.model("Result",
- new mongoose.Schema({
+const ResultSchema = new mongoose.Schema({
   name: String,
   email: String,
   score: Number,
   total: Number,
-  timeTaken: Number,
-  status:{ type: String },
-  createdAt:{ type: Date, default: Date.now }
-}));
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  }
+});
+
+module.exports = mongoose.model("Result", ResultSchema);

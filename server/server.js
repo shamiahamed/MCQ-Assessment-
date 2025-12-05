@@ -1,40 +1,33 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const serverless = require('serverless-http');
-require('dotenv').config();
+// api/result.js
 
-const Result = require('./models/Result');
+const mongoose = require("mongoose");
+const Result = require("../server/models/Result");
+require("dotenv").config();
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+let isConnected = false;
 
-// ---------- MONGODB CONNECTION ----------
-const mongoURI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/mcqdb";
+async function connectDB() {
+  if (isConnected) return;
+  await mongoose.connect(process.env.MONGO_URI);
+  isConnected = true;
+  console.log("✅ MongoDB connected");
+}
 
-mongoose.connect(mongoURI)
-  .then(() => console.log(`✅ MongoDB connected to ${mongoURI.includes("127.0.0.1") ? "local DB" : "Atlas DB"}`))
-  .catch(err => console.error("❌ MongoDB connection error:", err));
-
-// ---------- API ROUTE ----------
-app.post("/api/result", async (req, res) => {
-  try {
-    const r = new Result(req.body);
-    await r.save();
-    res.json({ msg: "saved" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "error saving result" });
+export default async function handler(req, res) {
+  // ✅ Allow only POST
+  if (req.method !== "POST") {
+    return res.status(405).json({ msg: "Only POST allowed" });
   }
-});
 
-// ---------- EXPORT FOR VERCEL ----------
-module.exports = app;
-module.exports.handler = serverless(app);
+  try {
+    await connectDB();
 
-// ---------- OPTIONAL LOCAL TESTING ----------
-if (process.env.NODE_ENV !== "production") {
-  const PORT = 5000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    const result = new Result(req.body);
+    await result.save();
+
+    return res.status(200).json({ msg: "saved" });
+  } catch (err) {
+    console.error("Save error:", err);
+    return res.status(500).json({ msg: "error saving result" });
+  }
 }
