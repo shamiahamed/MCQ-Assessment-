@@ -12,48 +12,52 @@ export default function Quiz({ candidate }) {
   const [submitted, setSubmitted] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
 
-  // ✅ EMAIL VALIDATION STATES
-  const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [started, setStarted] = useState(false);
 
-  // ---------- PAGE RELOAD CONTROL ----------
-  useEffect(() => {
-    let reloadCount = localStorage.getItem("reloadCount");
 
-    if (!reloadCount) {
-      localStorage.setItem("reloadCount", 1);
-    } else {
-      reloadCount = parseInt(reloadCount) + 1;
-      localStorage.setItem("reloadCount", reloadCount);
+// ---------- PAGE RELOAD CONTROL ----------
+useEffect(() => {
+  let reloadCount = localStorage.getItem("reloadCount");
 
-      if (reloadCount === 2) {
-        alert("⚠️ Warning: Reloading again will END your test!");
-      }
+  if (!reloadCount) {
+    // First load
+    localStorage.setItem("reloadCount", 1);
+  } else {
+    reloadCount = parseInt(reloadCount) + 1;
+    localStorage.setItem("reloadCount", reloadCount);
 
-      if (reloadCount >= 3) {
-        submitTest();
-      }
+    // 1st reload → warning
+    if (reloadCount === 2) {
+      alert("⚠️ Warning: Reloading again will END your test!");
     }
-  }, []);
 
-  // ---------- RESET ON TAB CLOSE ----------
-  useEffect(() => {
-    const clearSession = () => {
-      localStorage.removeItem("candidate");
-      localStorage.removeItem("reloadCount");
-    };
+    // 2nd reload → auto submit
+    if (reloadCount >= 3) {
+      submitTest();
+    }
+  }
+}, []);
 
-    window.addEventListener("beforeunload", clearSession);
+// ---------- RESET ON TAB CLOSE ----------
+useEffect(() => {
 
-    return () => {
-      window.removeEventListener("beforeunload", clearSession);
-    };
-  }, []);
+  const clearSession = () => {
+    localStorage.removeItem("candidate");
+    localStorage.removeItem("reloadCount");
+  };
+
+  window.addEventListener("beforeunload", clearSession);
+
+  return () => {
+    window.removeEventListener("beforeunload", clearSession);
+  };
+
+}, []);
+
+
 
   // ---------- TIMER ----------
   useEffect(() => {
-    if (!started || submitted) return;
+    if (submitted) return;
 
     const t = setInterval(() => {
       setTime((prev) => {
@@ -66,49 +70,35 @@ export default function Quiz({ candidate }) {
     }, 1000);
 
     return () => clearInterval(t);
-  }, [submitted, started]);
+  }, [submitted]);
 
-  // ---------- EMAIL CHECK ----------
-  const isValidEmail = (mail) => {
-    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return pattern.test(mail);
-  };
 
-  const startTest = () => {
-    if (!isValidEmail(email)) {
-      setEmailError("❌ Please enter a VALID email address");
-      return;
-    }
+ const submitTest = async () => {
 
-    setEmailError("");
-    setStarted(true);
+  localStorage.removeItem("reloadCount");
 
-    candidate.email = email;
-  };
+  let score = 0;
 
-  // ---------- SUBMIT ----------
-  const submitTest = async () => {
-    localStorage.removeItem("reloadCount");
+  questions.forEach((q, i) => {
+    if (answers[i] === q.answer) score++;
+  });
 
-    let score = 0;
+  await axios.get("/api/result", {
+  name: candidate.name,
+  email: candidate.email,
+  score,
+  total: questions.length  
+  });
 
-    questions.forEach((q, i) => {
-      if (answers[i] === q.answer) score++;
-    });
+  setSubmitted(true);
 
-    await axios.get("/api/result", {
-      name: candidate.name,
-      email: candidate.email,
-      score,
-      total: questions.length  
-    });
+  // SAFE fullscreen exit
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {}); 
+  }
+};
 
-    setSubmitted(true);
 
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    }
-  };
 
   const choose = (opt) => {
     setAnswers({ ...answers, [current]: opt });
@@ -120,40 +110,13 @@ export default function Quiz({ candidate }) {
     return `${m}:${s < 10 ? "0" + s : s}`;
   };
 
-  // ---------- START SCREEN ----------
-  if (!started) {
-    return (
-      <div className="start-screen">
-        <h2>📝 Online Quiz</h2>
-
-        <input
-          type="email"
-          placeholder="Enter valid email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        {emailError && (
-          <p style={{ color: "red" }}>{emailError}</p>
-        )}
-
-        <button onClick={startTest}>
-          START TEST
-        </button>
-      </div>
-    );
-  }
-
-  // ---------- SUBMITTED ----------
   if (submitted) {
     return (
       <div className="submitted">
         <h1 style={{ color: "green" }}>
           ✅ TEST SUBMITTED SUCCESSFULLY
         </h1>
-
         <p>We will get back to you soon.</p>
-
         <button onClick={() => window.close()}>
           Close Tab
         </button>
@@ -161,7 +124,6 @@ export default function Quiz({ candidate }) {
     );
   }
 
-  // ---------- MAIN QUIZ ----------
   return (
     <div className={dark ? "dark" : "light"}>
 
@@ -174,13 +136,12 @@ export default function Quiz({ candidate }) {
         <div className={time <= 120 ? "timer blink" : "timer"}>
           ⏱ {formatTime()}
         </div>
-      </div>
-
+      </div> 
       {time <= 480 && !submitted && (
-        <div className="time-warning">
-          ⚠️ WARNING: Only {Math.floor(time / 60)} minutes left!
-        </div>
-      )} 
+  <div className="time-warning">
+    ⚠️ WARNING: Only {Math.floor(time / 60)} minutes left!
+  </div>
+)} 
 
       {/* ---------- PALETTE ---------- */}
       <div className="palette">
@@ -200,7 +161,7 @@ export default function Quiz({ candidate }) {
         {current + 1}. {questions[current].question}
       </h2>
 
-      {/* -------- OPTIONS ---------- */}
+      {/* -------- OPTIONS -------- */}
       {questions[current].options.map((opt, i) => (
         <label key={i} className="option">
           <input
@@ -212,7 +173,7 @@ export default function Quiz({ candidate }) {
         </label>
       ))}
 
-      {/* -------- NAVIGATION ---------- */}
+      {/* -------- NEXT + SUBMIT -------- */}
       <div style={{ marginTop: 20 }}>
 
         <button
