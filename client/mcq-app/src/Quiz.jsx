@@ -25,12 +25,12 @@ useEffect(() => {
     reloadCount = parseInt(reloadCount) + 1;
     localStorage.setItem("reloadCount", reloadCount);
 
-    // ⚠️ 1st reload → warning
+    // 1st reload → warning
     if (reloadCount === 2) {
       alert("⚠️ Warning: Reloading again will END your test!");
     }
 
-    // ❌ 2nd reload → auto submit
+    // 2nd reload → auto submit
     if (reloadCount >= 3) {
       submitTest();
     }
@@ -83,7 +83,7 @@ useEffect(() => {
     if (answers[i] === q.answer) score++;
   });
 
-  await axios.post("http://localhost:5000/api/result", {
+  await axios.post("/api/result", {
     name: candidate.name,
     email: candidate.email,
     score,
