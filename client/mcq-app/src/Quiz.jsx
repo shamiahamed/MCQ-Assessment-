@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react"; // added useCallback
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import questions from "./data/questions";
 import "./index.css";
@@ -10,64 +10,50 @@ export default function Quiz({ candidate }) {
   const [time, setTime] = useState(10 * 60);
   const [dark, setDark] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
 
-  // ---------- SUBMIT FUNCTION ----------  
-  const submitTest = useCallback(async () => { 
+
+
+// ---------- PAGE RELOAD CONTROL ----------
+useEffect(() => {
+  let reloadCount = localStorage.getItem("reloadCount");
+
+  if (!reloadCount) {
+    // First load
+    localStorage.setItem("reloadCount", 1);
+  } else {
+    reloadCount = parseInt(reloadCount) + 1;
+    localStorage.setItem("reloadCount", reloadCount);
+
+    // 1st reload → warning
+    if (reloadCount === 2) {
+      alert("⚠️ Warning: Reloading again will END your test!");
+    }
+
+    // 2nd reload → auto submit
+    if (reloadCount >= 3) {
+      submitTest();
+    }
+  }
+}, []);
+
+// ---------- RESET ON TAB CLOSE ----------
+useEffect(() => {
+
+  const clearSession = () => {
+    localStorage.removeItem("candidate");
     localStorage.removeItem("reloadCount");
+  };
 
-    let score = 0;
-    questions.forEach((q, i) => {
-      if (answers[i] === q.answer) score++;
-    });
+  window.addEventListener("beforeunload", clearSession);
 
-    await axios.post("/api/result", {
-      name: candidate.name,
-      email: candidate.email,
-      score,
-      total: questions.length
-    });
+  return () => {
+    window.removeEventListener("beforeunload", clearSession);
+  };
 
-    setSubmitted(true);
+}, []);
 
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    }
-  }, [answers, candidate]); 
 
-  // ---------- PAGE RELOAD CONTROL ----------
-  useEffect(() => {
-    let reloadCount = localStorage.getItem("reloadCount");
-
-    if (!reloadCount) {
-      localStorage.setItem("reloadCount", 1);
-    } else {
-      reloadCount = parseInt(reloadCount) + 1;
-      localStorage.setItem("reloadCount", reloadCount);
-
-      if (reloadCount === 2) {
-        alert("⚠️ Warning: Reloading again will END your test!");
-      }
-
-      if (reloadCount >= 3) {
-        submitTest(); //
-      }
-    }
-  }, [submitTest]);
-
-  // ---------- RESET ON TAB CLOSE ----------
-  useEffect(() => {
-    const clearSession = () => {
-      localStorage.removeItem("candidate");
-      localStorage.removeItem("reloadCount");
-    };
-
-    window.addEventListener("beforeunload", clearSession);
-
-    return () => {
-      window.removeEventListener("beforeunload", clearSession);
-    };
-
-  }, []);
 
   // ---------- TIMER ----------
   useEffect(() => {
@@ -84,14 +70,40 @@ export default function Quiz({ candidate }) {
     }, 1000);
 
     return () => clearInterval(t);
-  }, [submitted, submitTest]); // added submitTest
+  }, [submitted]);
 
-  // ---------- CHOOSE ANSWER ----------
+
+ const submitTest = async () => {
+
+  localStorage.removeItem("reloadCount");
+
+  let score = 0;
+
+  questions.forEach((q, i) => {
+    if (answers[i] === q.answer) score++;
+  });
+
+  await axios.post("/api/result", {
+    name: candidate.name,
+    email: candidate.email,
+    score,
+    total: questions.length
+  });
+
+  setSubmitted(true);
+
+  // SAFE fullscreen exit
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+};
+
+
+
   const choose = (opt) => {
     setAnswers({ ...answers, [current]: opt });
   };
 
-  // ---------- FORMAT TIME ----------
   const formatTime = () => {
     const m = Math.floor(time / 60);
     const s = time % 60;
@@ -125,12 +137,11 @@ export default function Quiz({ candidate }) {
           ⏱ {formatTime()}
         </div>
       </div> 
-
       {time <= 480 && !submitted && (
-        <div className="time-warning">
-          ⚠️ WARNING: Only {Math.floor(time / 60)} minutes left!
-        </div>
-      )} 
+  <div className="time-warning">
+    ⚠️ WARNING: Only {Math.floor(time / 60)} minutes left!
+  </div>
+)} 
 
       {/* ---------- PALETTE ---------- */}
       <div className="palette">
@@ -164,6 +175,7 @@ export default function Quiz({ candidate }) {
 
       {/* -------- NEXT + SUBMIT -------- */}
       <div style={{ marginTop: 20 }}>
+
         <button
           disabled={current === 0}
           onClick={() => setCurrent(current - 1)}
@@ -184,6 +196,7 @@ export default function Quiz({ candidate }) {
         >
           SUBMIT TEST
         </button>
+
       </div>
 
     </div>
